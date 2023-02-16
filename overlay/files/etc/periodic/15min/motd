@@ -1,0 +1,4 @@
+#!/bin/sh
+#. /etc/os-release
+
+cat /etc/issue | sed 's@\\r@'"$(uname -r)"'@g' | sed 's@\\m@'"$(uname -m)"'@g' | sed 's@(\\l)@@g' > /etc/motd

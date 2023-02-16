@@ -1,0 +1,22 @@
+ARG OS_IMAGE=ghcr.io/jtcressy-home/edge-images:latest
+ARG TOOL_IMAGE=registry.opensuse.org/isv/rancher/elemental/stable/teal53/15.4/rancher/elemental-builder-image/5.3:latest
+
+FROM $OS_IMAGE AS os
+FROM $TOOL_IMAGE as tools
+
+FROM tools AS default
+WORKDIR /iso
+COPY --from=os / rootfs
+ARG CLOUD_CONFIG_FILE=iso/config
+ARG MANIFEST_FILE=iso/manifest.yaml
+ARG GRUB_CFG=iso/files/boot/grub2/grub.cfg
+COPY $GRUB_CFG overlay/boot/grub2/grub.cfg
+COPY $CLOUD_CONFIG_FILE overlay/livecd-cloud-config.yaml
+COPY $MANIFEST_FILE /iso/manifest.yaml
+ARG ELEMENTAL_VERSION=""
+RUN echo $ELEMENTAL_VERSION
+RUN mkdir /build
+VOLUME /build
+ENTRYPOINT ["/usr/bin/elemental"]
+CMD [ "--config-dir=.", "build-iso", "-o", "/build", "-n", "edgenode", "--overlay-iso", "overlay", "dir:rootfs"]
+# USAGE: docker run --rm -v "$PWD":/build edgenode/iso:latest

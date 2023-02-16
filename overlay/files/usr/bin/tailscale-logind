@@ -1,0 +1,15 @@
+#!/bin/bash
+
+while true
+do
+  tailscale_state=$(tailscale status --json | jq -r '.BackendState')
+  if [ "$tailscale_state" == "NeedsLogin" ]; then
+    if [ -f /boot/firmware/tailscale-authkey ]; then
+      tailscale login --timeout=1s --auth-key=file:/boot/firmware/tailscale-authkey
+    else
+      echo "starting tailscale login with 60s timeout"
+      tailscale login --timeout=60s
+    fi
+  fi
+  sleep 5;
+done

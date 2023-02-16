@@ -1,0 +1,105 @@
+---
+name: Edgenode Image Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  release:
+    types:
+      - published
+
+concurrency:
+  group: docker-images-${{ github.head_ref || github.ref }}-${{ github.repository }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-docker:
+    runs-on: buildjet-16vcpu-ubuntu-2204
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        
+      - name: Login to the Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          tags: |
+            type=schedule
+            type=semver,pattern=v{{version}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Inform OS Label (release)
+        if: github.event_name == 'release'
+        run: |
+          echo "OS_LABEL=latest" >> $GITHUB_ENV
+
+      - name: Inform OS Label (pull request)
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "OS_LABEL=pr-${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+
+      - name: Inform OS Label (main)
+        if: github.event_name != 'pull_request' && github.event_name != 'release' && github.ref == 'refs/heads/main'
+        run: |
+          echo "OS_LABEL=main" >> $GITHUB_ENV
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v3
+        with:
+          file: Dockerfile.image
+          target: default
+          context: ""
+          # cache into GitHub actions cache, nice
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+          build-args: |
+            OS_LABEL=${{ env.OS_LABEL }}
+            OS_REPO=${{ env.REGISTRY }}/${{ github.repository }}
+            GITHUB_REPO=${{ github.repository }}
+            BUG_REPORT_URL=${{ github.repositoryUrl }}/issues
+            HOME_URL=${{ github.repositoryUrl }}
+            OS_VERSION=${{ steps.meta.outputs.version }}
+            IMAGE_TAG=${{ steps.meta.outputs.version }}
+            IMAGE_COMMIT=${{ github.sha }}
+            IMAGE_REPO=${{ env.REPO }}
+
+      - name: Summary
+        run: |
+          echo '### Built Image Tags' >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.meta.outputs.tags }}' >> $GITHUB_STEP_SUMMARY
+          echo '### Built Image Labels' >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.meta.outputs.labels }}' >> $GITHUB_STEP_SUMMARY
+# TODO: iso build job
+# TODO: release job to publish non-docker images

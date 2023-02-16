@@ -1,0 +1,16 @@
+[Unit]
+Description=Keeps tailscale alive, logged in and configured
+After=tailscaled.service
+Requires=tailscaled.service
+
+[Service]
+ExecStart=-/usr/bin/tailscale-logind
+Restart=always
+RestartSec=15s
+User=root
+KillMode=process
+IgnoreSIGPIPE=no
+SendSIGHUP=yes
+
+[Install]
+WantedBy=multi-user.target

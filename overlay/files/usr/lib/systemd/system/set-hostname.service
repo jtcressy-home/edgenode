@@ -1,0 +1,10 @@
+[Unit]
+Description=Set hostname to {mfg}-{serial}
+After=systemd-hostnamed.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/bin/set-hostname.py
+
+[Install]
+WantedBy=multi-user.target

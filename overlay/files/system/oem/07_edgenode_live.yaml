@@ -1,0 +1,14 @@
+name: "Edgenode LiveCD Mode"
+stages:
+  initramfs:
+    - if: |
+        cat /proc/cmdline | grep -q "CDLABEL" || cat /proc/cmdline | grep -q "rd.cos.disable" || cat /proc/cmdline | grep -q "edgenode.livecd"
+      name: Set tailscaled to ephemeral node mode
+      files:
+      - path: /etc/default/tailscaled
+        content: |
+          FLAGS=""
+          STATE="mem:"
+        permissions: 0600
+        owner: 0
+        group: 0

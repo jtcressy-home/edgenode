@@ -1,0 +1,19 @@
+# Docs: https://rancher.github.io/elemental-toolkit/docs/customizing/general_configuration/
+cosign: false
+verify: false
+install:
+  grub-entry-name: "EdgeNode OS"
+  system:
+    size: 3000
+  recovery-system:
+    size: 3000
+upgrade:
+  grub-entry-name: "EdgeNode OS"
+  recovery-system:
+    size: 3000
+  system:
+    size: 3000
+reset:
+  grub-entry-name: "EdgeNode OS"
+  system:
+    size: 3000
