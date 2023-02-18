@@ -36,9 +36,7 @@ FROM scratch as default
 COPY --from=framework-build /framework /
 
 # grub2-artifacts hack
-COPY --from=framework-build /grub-artifacts/* /usr/share/efi/
-COPY --from=framework-build /grub-artifacts/* /usr/share/grub2/
-COPY --from=framework-build /grub-artifacts/* /usr/lib/grub/
+COPY --from=framework-build /grub-artifacts/ /usr/lib/grub/
 
 # Copy local framework files
 COPY framework/files/ /
