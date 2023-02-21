@@ -18,7 +18,5 @@ RUN echo $ELEMENTAL_VERSION
 RUN mkdir /build
 VOLUME /build
 ENTRYPOINT ["/usr/bin/elemental"]
-ARG TARGETARCH
-ENV TARGETARCH=${TARGETARCH}
-CMD [ "--config-dir=.", "build-iso", "-o", "/build", "-n", "edgenode-$TARGETARCH", "--overlay-iso", "overlay", "dir:rootfs"]
+CMD [ "--config-dir=.", "build-iso", "-o", "/build", "-n", "edgenode", "--overlay-iso", "overlay", "dir:rootfs" ]
 # USAGE: docker run --rm -v "$PWD":/build edgenode/iso:latest

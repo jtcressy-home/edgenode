@@ -106,7 +106,7 @@ jobs:
     needs:
     - build-docker
     runs-on: ${{ matrix.runs-on }}
-    if: ${{ always() && (contains(github.event.head_commit.message, '+iso')) }}
+    if: ${{ always() && (contains(github.event.head_commit.message, '+iso') || github.event_name == 'release') }}
     strategy:
       matrix:
         include:
@@ -160,7 +160,7 @@ jobs:
 
       - name: Build ISO Image
         run: |
-          docker run --rm -v "$PWD":/build edgenode/iso:${{ steps.meta.outputs.version }}
+          docker run --rm -v "$PWD":/build edgenode/iso:${{ steps.meta.outputs.version }} --config-dir=. build-iso -o /build -n edgenode --overlay-iso overlay dir:rootfs
 
       - name: Export Artifact
         uses: actions/upload-artifact@v3
