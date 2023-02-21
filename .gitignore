@@ -3,6 +3,5 @@
 !Dockerfile.iso
 /dist
 /build
-manifest.yaml
 .DS_Store
 .idea/

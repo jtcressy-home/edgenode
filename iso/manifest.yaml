@@ -1,0 +1,14 @@
+iso:
+  grub-entry-name: "Edgenode OS (livecd ephemeral mode)"
+  label: "COS_LIVE"
+  uefi:
+    - channel:live/grub2-efi-image
+  image:
+    - channel:live/grub2
+    - channel:live/grub2-efi-image
+repositories:
+  - uri: quay.io/costoolkit/releases-orange
+    arch: "x86_64"
+  - uri: quay.io/costoolkit/releases-orange-arm64
+    arch: "arm64"
+squash-no-compression: true

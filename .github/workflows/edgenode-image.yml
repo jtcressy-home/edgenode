@@ -101,5 +101,93 @@ jobs:
           echo '${{ steps.meta.outputs.tags }}' >> $GITHUB_STEP_SUMMARY
           echo '### Built Image Labels' >> $GITHUB_STEP_SUMMARY
           echo '${{ steps.meta.outputs.labels }}' >> $GITHUB_STEP_SUMMARY
-# TODO: iso build job
-# TODO: release job to publish non-docker images
+
+  build-iso:
+    needs:
+    - build-docker
+    runs-on: ${{ matrix.runs-on }}
+    if: ${{ always() && (contains(github.event.head_commit.message, '+iso')) }}
+    strategy:
+      matrix:
+        include:
+        - arch: amd64
+          runs-on: buildjet-16vcpu-ubuntu-2204
+        - arch: arm64
+          runs-on: buildjet-16vcpu-ubuntu-2204-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        
+      - name: Login to the Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Inform OS Image Tag
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          tags: type=sha
+      
+      - name: Build ISO-Builder Image
+        uses: docker/build-push-action@v3
+        with:
+          file: Dockerfile.iso
+          context: ""
+          # cache into GitHub actions cache, nice
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/${{ matrix.arch }}
+          push: false
+          load: true
+          tags: edgenode/iso:${{ steps.meta.outputs.version }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+          build-args: |
+            OS_IMAGE=${{ steps.meta.outputs.tags }}
+
+      - name: Build ISO Image
+        run: |
+          docker run --rm -v "$PWD":/build edgenode/iso:${{ steps.meta.outputs.version }}
+
+      - name: Export Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: edgenode-${{ matrix.arch }}-iso
+          path: |
+            *.iso
+            *.iso.sha256
+    
+  edgenode-image-release:
+    runs-on: ubuntu-latest
+    needs:
+    - build-iso
+    # - build-rpi
+    if: github.event_name == 'release'
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v3
+        id: download
+
+      - uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: "edgenode-*/*"
+          overwrite: true
+          update_latest_release: true
+          tags: true

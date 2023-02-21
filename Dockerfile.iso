@@ -1,4 +1,4 @@
-ARG OS_IMAGE=ghcr.io/jtcressy-home/edge-images:latest
+ARG OS_IMAGE=ghcr.io/jtcressy-home/edgenode:main
 ARG TOOL_IMAGE=registry.opensuse.org/isv/rancher/elemental/stable/teal53/15.4/rancher/elemental-builder-image/5.3:latest
 
 FROM $OS_IMAGE AS os
@@ -18,5 +18,7 @@ RUN echo $ELEMENTAL_VERSION
 RUN mkdir /build
 VOLUME /build
 ENTRYPOINT ["/usr/bin/elemental"]
-CMD [ "--config-dir=.", "build-iso", "-o", "/build", "-n", "edgenode", "--overlay-iso", "overlay", "dir:rootfs"]
+ARG TARGETARCH
+ENV TARGETARCH=${TARGETARCH}
+CMD [ "--config-dir=.", "build-iso", "-o", "/build", "-n", "edgenode-$TARGETARCH", "--overlay-iso", "overlay", "dir:rootfs"]
 # USAGE: docker run --rm -v "$PWD":/build edgenode/iso:latest
