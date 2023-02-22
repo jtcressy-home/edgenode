@@ -30,6 +30,7 @@ RUN toolchain/cosign
 RUN toolchain/elemental-cli
 
 RUN distro/base
+RUN system/kernel
 
 # Base os
 FROM scratch as default
@@ -64,7 +65,7 @@ RUN mkdir -p /opt/tailscale
 
 RUN systemctl enable set-hostname.service tailscale-logind.service tailscaled.service
 
-RUN apt install -y linux-image-generic
+# RUN apt install -y linux-image-generic
 
 ## Workarounds for elemental installer looking for shim files (https://github.com/rancher/elemental-cli/blob/19a9832efe6cc5411f76f97204543700a7d45ea6/pkg/utils/grub.go#LL196C63-L196C81)
 RUN apt install -y grub-efi shim shim-signed
