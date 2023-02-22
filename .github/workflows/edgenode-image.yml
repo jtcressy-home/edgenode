@@ -21,7 +21,7 @@ env:
 
 jobs:
   build-docker:
-    runs-on: buildjet-16vcpu-ubuntu-2204
+    runs-on: ${{ (contains(github.event.head_commit.message, '+ci-boost') && 'buildjet-16vcpu-ubuntu-2204' || 'ubuntu-latest') }}
     permissions:
       contents: read
       packages: write
@@ -111,9 +111,9 @@ jobs:
       matrix:
         include:
         - arch: amd64
-          runs-on: buildjet-16vcpu-ubuntu-2204
+          runs-on: ${{ (contains(github.event.head_commit.message, '+ci-boost') && 'buildjet-16vcpu-ubuntu-2204' || 'ubuntu-latest') }}
         - arch: arm64
-          runs-on: buildjet-16vcpu-ubuntu-2204-arm
+          runs-on: ${{ (contains(github.event.head_commit.message, '+ci-boost') && 'buildjet-16vcpu-ubuntu-2204-arm' || 'ubuntu-latest') }}
     permissions:
       contents: read
       packages: write
@@ -160,7 +160,7 @@ jobs:
 
       - name: Build ISO Image
         run: |
-          docker run --rm -v "$PWD":/build edgenode/iso:${{ steps.meta.outputs.version }} --config-dir=. build-iso -o /build -n edgenode --overlay-iso overlay dir:rootfs
+          docker run --platform=linux/${{ matrix.arch }} --rm -v "$PWD":/build edgenode/iso:${{ steps.meta.outputs.version }} --config-dir=. build-iso -o /build -n edgenode-${{ matrix.arch }} --overlay-iso overlay dir:rootfs
 
       - name: Export Artifact
         uses: actions/upload-artifact@v3
