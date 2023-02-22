@@ -106,7 +106,7 @@ jobs:
     needs:
     - build-docker
     runs-on: ${{ matrix.runs-on }}
-    if: ${{ always() && (contains(github.event.head_commit.message, '+iso') || github.event_name == 'release') }}
+    if: ${{ (contains(github.event.head_commit.message, '+iso') || github.event_name == 'release') }}
     strategy:
       matrix:
         include:
