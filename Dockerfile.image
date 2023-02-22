@@ -31,6 +31,7 @@ RUN toolchain/elemental-cli
 
 RUN distro/base
 RUN system/kernel
+RUN system/dracut-initrd
 
 # Base os
 FROM scratch as default
