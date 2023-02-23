@@ -12,26 +12,31 @@ SHELL ["/usr/bin/luet", "install", "-y", "--system-target", "/framework"]
 
 # Use system/cos as base image - /etc/luet/luet.yaml should be set to releases-orange to have an ubuntu-based system
 # RUN system/cos-container
-RUN system/immutable-rootfs
-RUN system/cos-setup
-RUN cloud-config/network
-RUN cloud-config/recovery
-RUN cloud-config/live
-RUN cloud-config/accounting
-RUN cloud-config/boot-assessment
-RUN cloud-config/default-services
-RUN system/grub2-config
-RUN system/base-dracut-modules
 
-# elemental-toolkit utilities
-RUN utils/k9s
-RUN utils/nerdctl
-RUN toolchain/cosign
-RUN toolchain/elemental-cli
+# RUN system/immutable-rootfs
+# RUN system/cos-setup
+# RUN cloud-config/network
+# RUN cloud-config/recovery
+# RUN cloud-config/live
+# RUN cloud-config/accounting
+# RUN cloud-config/boot-assessment
+# RUN cloud-config/default-services
+# RUN system/grub2-config
+# RUN system/base-dracut-modules
+
+# # elemental-toolkit utilities
+# RUN utils/k9s
+# RUN utils/nerdctl
+# RUN toolchain/cosign
+# RUN toolchain/elemental-cli
 
 RUN distro/base
 RUN system/kernel
 RUN system/dracut-initrd
+RUN meta/cos-minimal
+RUN meta/cos-verify
+RUN toolchain/luet-mtree
+RUN system/cos-features
 
 # Base os
 FROM scratch as default
@@ -44,13 +49,21 @@ COPY --from=framework-build /grub-artifacts/ /usr/share/grub2/
 # Copy local framework files
 COPY framework/files/ /
 
-# Enable services
-RUN systemctl enable NetworkManager systemd-timesyncd
-
 RUN curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.noarmor.gpg | tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null && \
     curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.tailscale-keyring.list | tee /etc/apt/sources.list.d/tailscale.list
 
-RUN apt-get update && apt-get autoclean && DEBIAN_FRONTEND=noninteractive apt-get install tailscale jq qrencode dmidecode console-data snapd openssh-server sudo netplan.io -y
+RUN apt-get update && apt-get autoclean && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    tailscale \
+    jq \
+    qrencode \
+    dmidecode \
+    console-data \
+    snapd \
+    openssh-server \
+    sudo \
+    netplan.io \
+    file \
+    tree
 RUN snap download microk8s --channel=$MICROK8S_CHANNEL --target-directory /opt/microk8s/snaps --basename microk8s
 RUN snap download core --target-directory /opt/microk8s/snaps --basename core
 
@@ -64,23 +77,21 @@ RUN setupcon --save
 
 RUN mkdir -p /opt/tailscale
 
-RUN systemctl enable set-hostname.service tailscale-logind.service tailscaled.service
+RUN systemctl enable NetworkManager systemd-timesyncd multi-user.target getty@tty1 set-hostname.service tailscale-logind.service tailscaled.service
 
-# RUN apt install -y linux-image-generic
+# RUN apt install -y linux-image-generic initramfs-tools
 
 ## Workarounds for elemental installer looking for shim files (https://github.com/rancher/elemental-cli/blob/19a9832efe6cc5411f76f97204543700a7d45ea6/pkg/utils/grub.go#LL196C63-L196C81)
 RUN apt install -y grub-efi shim shim-signed
-# Try to install each arch version since the package names contain the arch and apt can't choose for us
-RUN apt install -y grub-efi-arm64 grub-efi-arm64-bin grub-efi-arm64-signed || true
-RUN apt install -y grub-efi-amd64 grub-efi-amd64-bin grub-efi-amd64-signed || true
 
 RUN ln -s /usr/bin/grub-editenv /usr/bin/grub2-editenv
 
-# Rebuild initrd to setup dracut with the boot configurations
-RUN mkinitrd && \
-    # aarch64 has an uncompressed kernel so we need to link it to vmlinuz
-    kernel=$(ls /boot/Image-* | head -n1) && \
-    if [ -e "$kernel" ]; then ln -sf "${kernel#/boot/}" /boot/vmlinuz; fi
+
+# # Rebuild initrd to setup dracut with the boot configurations
+RUN kernel=$(readlink -f /boot/vmlinuz) && \
+    version=${kernel##/boot/vmlinuz-} && \
+    mkinitrd /boot/initrd-${version} ${version} && \
+    cd /boot && ln -sf initrd initrd-${version}
 
 # Save some space
 RUN rm -rf /var/log/update* && \

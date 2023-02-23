@@ -9,8 +9,6 @@ WORKDIR /iso
 COPY --from=os / rootfs
 ARG CLOUD_CONFIG_FILE=iso/config
 ARG MANIFEST_FILE=iso/manifest.yaml
-ARG GRUB_CFG=iso/files/boot/grub2/grub.cfg
-COPY $GRUB_CFG overlay/boot/grub2/grub.cfg
 COPY $CLOUD_CONFIG_FILE overlay/livecd-cloud-config.yaml
 COPY $MANIFEST_FILE /iso/manifest.yaml
 ARG ELEMENTAL_VERSION=""
