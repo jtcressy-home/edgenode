@@ -91,7 +91,7 @@ RUN ln -s /usr/bin/grub-editenv /usr/bin/grub2-editenv
 RUN kernel=$(readlink -f /boot/vmlinuz) && \
     version=${kernel##/boot/vmlinuz-} && \
     mkinitrd /boot/initrd-${version} ${version} && \
-    cd /boot && ln -sf initrd initrd-${version}
+    cd /boot && ln -sf initrd-${version} initrd
 
 # Save some space
 RUN rm -rf /var/log/update* && \
