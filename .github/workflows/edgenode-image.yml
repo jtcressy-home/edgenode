@@ -21,10 +21,17 @@ env:
 
 jobs:
   build-docker:
-    runs-on: ${{ (contains(github.event.head_commit.message, '+ci-boost') && 'buildjet-16vcpu-ubuntu-2204' || 'ubuntu-latest') }}
+    runs-on: ${{ matrix.runs-on }}
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        include:
+        - arch: amd64
+          runs-on: ${{ ((contains(github.event.head_commit.message, '+ci-boost') || contains(github.event.*.labels.*.name, 'ci-boost')) && 'buildjet-16vcpu-ubuntu-2204' || 'ubuntu-latest') }}
+        - arch: arm64
+          runs-on: ${{ ((contains(github.event.head_commit.message, '+ci-boost') || contains(github.event.*.labels.*.name, 'ci-boost')) && 'buildjet-16vcpu-ubuntu-2204-arm' || 'ubuntu-latest') }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
@@ -47,6 +54,10 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}
+          flavor: |
+            latest=auto
+            prefix=
+            suffix=-${{ matrix.arch }}
           tags: |
             type=schedule
             type=semver,pattern=v{{version}}
@@ -78,7 +89,7 @@ jobs:
           # cache into GitHub actions cache, nice
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/${{ matrix.arch }}
           push: true
           tags: |
             ${{ steps.meta.outputs.tags }}
@@ -88,12 +99,10 @@ jobs:
             OS_LABEL=${{ env.OS_LABEL }}
             OS_REPO=${{ env.REGISTRY }}/${{ github.repository }}
             GITHUB_REPO=${{ github.repository }}
-            BUG_REPORT_URL=${{ github.repositoryUrl }}/issues
-            HOME_URL=${{ github.repositoryUrl }}
+            BUG_REPORT_URL=https://github.com/${{ github.repository }}/issues
+            HOME_URL=https://github.com/${{ github.repository }}
             OS_VERSION=${{ steps.meta.outputs.version }}
-            IMAGE_TAG=${{ steps.meta.outputs.version }}
             IMAGE_COMMIT=${{ github.sha }}
-            IMAGE_REPO=${{ env.REPO }}
 
       - name: Summary
         run: |
@@ -111,9 +120,9 @@ jobs:
       matrix:
         include:
         - arch: amd64
-          runs-on: ${{ (contains(github.event.head_commit.message, '+ci-boost') && 'buildjet-16vcpu-ubuntu-2204' || 'ubuntu-latest') }}
+          runs-on: ${{ ((contains(github.event.head_commit.message, '+ci-boost') || contains(github.event.*.labels.*.name, 'ci-boost')) && 'buildjet-16vcpu-ubuntu-2204' || 'ubuntu-latest') }}
         - arch: arm64
-          runs-on: ${{ (contains(github.event.head_commit.message, '+ci-boost') && 'buildjet-16vcpu-ubuntu-2204-arm' || 'ubuntu-latest') }}
+          runs-on: ${{ ((contains(github.event.head_commit.message, '+ci-boost') || contains(github.event.*.labels.*.name, 'ci-boost')) && 'buildjet-16vcpu-ubuntu-2204-arm' || 'ubuntu-latest') }}
     permissions:
       contents: read
       packages: write
@@ -134,17 +143,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Inform OS Image Tag
+      - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}
+          flavor: |
+            latest=auto
+            prefix=
+            suffix=-${{ matrix.arch }}
           tags: type=sha
       
       - name: Build ISO-Builder Image
         uses: docker/build-push-action@v3
         with:
-          file: Dockerfile.iso
+          file: Dockerfile.iso-builder
           context: ""
           # cache into GitHub actions cache, nice
           cache-from: type=gha

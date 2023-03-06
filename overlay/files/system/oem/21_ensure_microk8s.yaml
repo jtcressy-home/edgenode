@@ -1,6 +1,6 @@
 name: "Ensure microk8s is activated and up-to-date in snapd"
 stages:
-  fs:
+  network:
     - name: "If microk8s not installed, run installer"
       if: |
         [ ! -d \"/var/snap/microk8s\" ]
