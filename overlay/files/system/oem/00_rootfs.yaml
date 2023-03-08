@@ -1,0 +1,73 @@
+# Rootfs cOS OEM configuration file
+#
+# This file is part of cOS and will get reset during upgrades.
+#
+# Before you change this file manually,
+# consider copying this file to /usr/local/cloud-config or
+# copy the file with a prefix starting by 90, e.g. /oem/91_custom.yaml
+name: "Rootfs Layout Settings"
+stages:
+  rootfs.before:
+    - name: "Pull data from provider"
+      datasource:
+        providers: ["aws", "gcp", "openstack", "cdrom"]
+        path: "/oem"
+  rootfs:
+    - if: '[ ! -f "/run/cos/recovery_mode" ]'
+      name: "Layout configuration"
+      environment_file: /run/cos/cos-layout.env
+      environment:
+        VOLUMES: "LABEL=COS_OEM:/oem LABEL=COS_PERSISTENT:/usr/local"
+        OVERLAY: "tmpfs:25%"
+        RW_PATHS: "/var /etc /srv"
+        PERSISTENT_STATE_PATHS: >-
+          /etc/systemd
+          /etc/modprobe.d
+          /etc/sysconfig
+          /etc/runlevels
+          /etc/ssh
+          /etc/iscsi 
+          /etc/cni
+          /home
+          /opt
+          /root
+          /usr/libexec
+          /var/log
+          /var/lib/kubelet
+          /var/lib/cni
+          /var/lib/tailscale
+          /var/lib/snapd
+          /var/snap
+          /snap
+        PERSISTENT_STATE_BIND: "true"
+    - if: '[ -f "/run/cos/recovery_mode" ]'
+      # omit the persistent partition on recovery mode
+      name: "Layout configuration"
+      environment_file: /run/cos/cos-layout.env
+      environment:
+        VOLUMES: "LABEL=COS_OEM:/oem"
+        OVERLAY: "tmpfs:25%"
+    - if: '[ ! -f /dev/disk/by-label/COS_OEM ]'
+      name: "Redirect /oem to COS_GRUB if COS_OEM does not exist"
+      commands:
+      - sed -i "s/COS_OEM/COS_GRUB/g" /run/cos/cos-layout.env
+    - if: '[ ! -f /run/cos/recovery_mode ] && [ ! -f /run/cos/live_mode ]'
+      name: "Grow persistent"
+      layout:
+        device:
+          label: COS_PERSISTENT
+        expand_partition:
+          # Size 0 is required to specify all remaining space
+          size: 0
+  initramfs:
+    - if: '[ ! -f "/run/cos/recovery_mode" ]'
+      name: "Persist /etc/machine-id"
+      commands:
+      - |
+        # persist machine-id
+        if [ -s /usr/local/etc/machine-id ]; then
+          cat /usr/local/etc/machine-id > /etc/machine-id
+        else
+          mkdir -p /usr/local/etc
+          cp /etc/machine-id /usr/local/etc
+        fi

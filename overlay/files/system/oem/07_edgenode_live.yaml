@@ -5,10 +5,11 @@ stages:
         cat /proc/cmdline | grep -q "CDLABEL" || cat /proc/cmdline | grep -q "rd.cos.disable" || cat /proc/cmdline | grep -q "edgenode.livecd"
       name: Set tailscaled to ephemeral node mode
       files:
-      - path: /etc/default/tailscaled
+      - path: /etc/systemd/system/tailscaled.service.d/override.conf
         content: |
-          FLAGS=""
-          STATE="mem:"
+          [Service]
+          ExecStart=
+          ExecStart=/usr/sbin/tailscaled --state=mem: --socket=/run/tailscale/tailscaled.sock
         permissions: 0600
         owner: 0
         group: 0

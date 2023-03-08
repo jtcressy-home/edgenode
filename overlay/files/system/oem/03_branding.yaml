@@ -1,0 +1,20 @@
+# Default cOS OEM configuration file
+# Default cOS OEM configuration file
+#
+# This file is part of cOS and will get reset during upgrades.
+#
+# Before you change this file manually,
+# consider copying this file to /usr/local/cloud-config or
+# copy the file with a prefix starting by 90, e.g. /oem/91_custom.yaml
+name: "Branding"
+stages:
+   initramfs:
+     - if: |
+            cat /proc/cmdline | grep -q "CDLABEL" || cat /proc/cmdline | grep -q "rd.cos.disable"
+       commands:
+        - |
+          source /etc/os-release
+          echo >> /etc/issue
+          echo "Login with user: root, password: cos" >> /etc/issue
+          echo "  Start the installer with "elemental install <device>" to install it in the local system" >> /etc/issue
+          echo >> /etc/issue
