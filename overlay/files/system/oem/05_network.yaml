@@ -10,5 +10,5 @@ stages:
   initramfs:
     - name: "Ensure resolv.conf symlink"
       commands:
-      - rm /etc/resolv.conf && ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+      - ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
        

@@ -35,8 +35,11 @@ RUN apt-get update && apt-get autoclean && DEBIAN_FRONTEND=noninteractive apt-ge
     openssh-server \
     sudo \
     netplan.io \
+    iptables-persistent \
+    net-tools \
     inetutils-ping \
     dnsutils \
+    vim \
     file \
     musl \
     htop \
