@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Set the value of FILE
+FILE="/var/snap/microk8s/current/args/kube-apiserver"
+
+# Wrap the main part of the script in a while loop
+while true; do
+    # Wait for the tailscale ip -4 command to succeed, sleep for 10 seconds between retries
+    until IP=$(tailscale ip -4); do
+        sleep 10
+    done
+
+    # Set the value of NEW_LINE
+    NEW_LINE="--advertise-address=$IP"
+
+    # Check if the pattern exists in the file and update it
+    if grep -q '^--advertise-address=' "$FILE"; then
+        sed -i "/^--advertise-address=/c$NEW_LINE" "$FILE"
+    else
+        echo "$NEW_LINE" >> "$FILE"
+    fi
+
+    # Wait for 60 seconds before running the loop again
+    sleep 60
+done
+
