@@ -1,0 +1,22 @@
+#!/bin/bash
+
+while true
+do
+  own_tags=$(tailscale status --json | jq -r '.Self.Tags[]')
+  master_nodes=$(tailscale status --json | jq -r '[.Peer[],.Self][] | [select(.Tags)][] | [select(.Tags[] | index("tag:microk8s-master"))] | .[].HostName' | tr '\n\r' ' ')
+  master_init_node=$(tailscale status --json | jq -r '[.Peer[],.Self][] | [select(.Tags)][] | [select(.Tags | index("tag:microk8s-master-init"))] | .[].HostName' | tr '\n\r' ' ')
+  master_nodes_except_init=$(tailscale status --json | jq -r '[.Peer[],.Self][] | [select(.Tags)][] | [select(.Tags | index("tag:microk8s-master") and (index("tag:microk8s-master-init") | not))] | .[].HostName' | tr '\n\r' ' ')
+
+  # if master-init exists, get node join from it
+  # else if master exists, pick one and get node join from it
+    # if my tags contain microk8s-worker, join as worker
+
+  ## OR ##
+
+  # if I am master-init, get all other master/worker nodes and find out which ones are not joined to me yet
+    # of the nodes not joined to me, for each node:
+      # run add-node, ssh to remote node, run join
+
+  echo "checking again in 5s"
+  sleep 5;
+done

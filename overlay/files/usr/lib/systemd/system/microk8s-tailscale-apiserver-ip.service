@@ -1,0 +1,16 @@
+[Unit]
+Description=Ensures that the microk8s kube-apiserver advertise address matches tailscale0
+After=tailscaled.service
+Requires=tailscaled.service
+
+[Service]
+ExecStart=-/usr/bin/microk8s-tailscale-apiserver-ip
+Restart=always
+RestartSec=15s
+User=root
+KillMode=process
+IgnoreSIGPIPE=no
+SendSIGHUP=yes
+
+[Install]
+WantedBy=multi-user.target

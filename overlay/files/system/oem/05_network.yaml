@@ -8,7 +8,10 @@
 name: "Default network configuration"
 stages:
   initramfs:
+    - name: "Ensure /etc/hosts contains localhost"
+      commands:
+      - grep -q '127.0.0.1 localhost' "/etc/hosts" || echo "127.0.0.1 localhost" >> /etc/hosts
     - name: "Ensure resolv.conf symlink"
       commands:
-      - rm /etc/resolv.conf && ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+      - ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
        

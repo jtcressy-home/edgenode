@@ -1,6 +1,7 @@
 # Binaries and files needed from elemental-toolkit repository
 ARG LUET_VERSION=0.32.5
 ARG COS_VERSION=0.10.3
+ARG K9S_VERSION=latest
 FROM quay.io/luet/base:$LUET_VERSION AS framework-build
 COPY framework/files/etc/luet/luet.yaml /etc/luet/luet.yaml
 ENV LUET_NOLOCK=true
@@ -10,6 +11,10 @@ SHELL ["/usr/bin/luet", "install", "-y", "--system-target", "/grub-artifacts"]
 RUN system/grub2-artifacts
 
 ARG TARGETARCH
+ARG TARGETPLATFORM
+
+FROM --platform=$TARGETPLATFORM quay.io/derailed/k9s:$K9S_VERSION AS k9s
+
 FROM quay.io/costoolkit/releases-orange:cos-system-${COS_VERSION} AS base-os-amd64
 FROM quay.io/costoolkit/releases-orange-arm64:cos-system-${COS_VERSION} AS base-os-arm64
 FROM base-os-${TARGETARCH} AS default
@@ -35,8 +40,11 @@ RUN apt-get update && apt-get autoclean && DEBIAN_FRONTEND=noninteractive apt-ge
     openssh-server \
     sudo \
     netplan.io \
+    iptables-persistent \
+    net-tools \
     inetutils-ping \
     dnsutils \
+    vim \
     file \
     musl \
     htop \
@@ -53,7 +61,7 @@ COPY overlay/files /
 
 RUN setupcon --save
 
-COPY --from=quay.io/derailed/k9s /bin/k9s /usr/bin/k9s
+COPY --from=k9s /bin/k9s /usr/bin/k9s
 
 # RUN apt install -y linux-image-generic initramfs-tools
 
@@ -63,7 +71,8 @@ RUN apt install -y grub-efi shim shim-signed
 RUN ln -s /usr/bin/grub-editenv /usr/bin/grub2-editenv
 RUN systemctl enable systemd-networkd
 RUN systemctl enable ssh
-RUN systemctl enable set-hostname.service
+RUN systemctl disable set-hostname.service
+RUN systemctl enable microk8s-tailscale-apiserver-ip.service
 RUN systemctl enable tailscale-logind.service
 RUN systemctl enable tailscaled.service
 
