@@ -1,5 +1,5 @@
 # Binaries and files needed from elemental-toolkit repository
-ARG LUET_VERSION=0.32.5
+ARG LUET_VERSION=0.34.0
 ARG COS_VERSION=0.10.3
 ARG K9S_VERSION=latest
 FROM quay.io/luet/base:$LUET_VERSION AS framework-build
