@@ -81,7 +81,7 @@ jobs:
           echo "OS_LABEL=main" >> $GITHUB_ENV
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           file: Dockerfile.image
           target: default
@@ -155,7 +155,7 @@ jobs:
           tags: type=sha
       
       - name: Build ISO-Builder Image
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           file: Dockerfile.iso-builder
           context: ""
