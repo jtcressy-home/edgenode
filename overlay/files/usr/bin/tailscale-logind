@@ -7,6 +7,9 @@ do
     if [ -f /boot/firmware/tailscale-authkey ]; then
       echo "authenticating tailscale with authkey at /boot/firmware/tailscale-authkey"
       tailscale login --timeout=1s --auth-key=file:/boot/firmware/tailscale-authkey
+    elif [ -f /var/lib/tailscale/authkey ]; then
+      echo "authenticating tailscale with authkey at /var/lib/tailscale/authkey"
+      tailscale login --timeout=1s --authkey=file:/var/lib/tailscale/authkey
     else
       echo "starting tailscale login with 60s timeout"
       tailscale login --timeout=60s
