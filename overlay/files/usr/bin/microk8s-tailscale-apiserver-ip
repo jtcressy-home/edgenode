@@ -3,6 +3,15 @@
 # Set the value of FILE
 FILE="/var/snap/microk8s/current/args/kube-apiserver"
 
+# Define the restart_microk8s function
+restart_microk8s() {
+    # Restart logic
+    echo "Restarting MicroK8s..."
+    snap set microk8s hack.update.csr="$(date)"
+    snap restart microk8s.daemon-kubelite
+    microk8s status --wait-ready
+}
+
 # Wrap the main part of the script in a while loop
 while true; do
     # Wait for the tailscale ip -4 command to succeed, sleep for 10 seconds between retries
@@ -15,12 +24,32 @@ while true; do
 
     # Check if the pattern exists in the file and update it
     if grep -q '^--advertise-address=' "$FILE"; then
+        OLD_LINE=$(grep '^--advertise-address=' "$FILE")
         sed -i "/^--advertise-address=/c$NEW_LINE" "$FILE"
+        if [[ "$OLD_LINE" != "$NEW_LINE" ]]; then
+            restart_microk8s
+        fi
     else
         echo "$NEW_LINE" >> "$FILE"
+        restart_microk8s
+    fi
+
+    # Workaround to handle bug where server cert is not regenerated after node joins another microk8s cluster
+    #     https://github.com/canonical/microk8s/issues/3785
+
+    # Extract version number from the string
+    microk8s_version=$(microk8s version | grep -oP 'v\d+\.\d+\.\d+')
+
+    # Compare version number with v1.27
+    if [[ $(printf '%s\n' "v1.27" "$microk8s_version" | sort -V | head -n1) == "v1.27" ]]; then
+        echo "The version number is at or above v1.27"
+    else
+        openssl verify -CAfile /var/snap/microk8s/current/certs/ca.crt /var/snap/microk8s/current/certs/server.crt && \
+            echo "Microk8s server.crt verifies with ca.crt. Nothing to do. Checking again in 60s." || \
+            (echo "Microk8s server.crt does NOT verify with ca.crt. Refreshing server.crt..." && \
+                microk8s refresh-certs --cert server.crt && microk8s status --wait-ready && echo "Certs refreshed. Checking again in 60s")
     fi
 
     # Wait for 60 seconds before running the loop again
     sleep 60
 done
-
