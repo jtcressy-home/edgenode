@@ -62,19 +62,19 @@ jobs:
         create_credentials_file: true
         export_environment_variables: true
 
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+
     - name: Setup `packer`
       uses: hashicorp/setup-packer@main
       id: packer-setup
       with:
         version: 1.8.6
-
-    - name: Create variables file
-      env:
-        PACKER_VARS: ${{ github.event.inputs.packer_vars_json }}
-      run: "echo $PACKER_VARS > packer-vars.json"
     
     - name: Packer Init
       run: "packer init ."
 
     - name: Packer build
-      run: "packer build -color=false -on-error=abort -only ${{ github.event.inputs.packer_target }} -var-file=packer-vars.json ."
+      env:
+        GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      run: "packer build -color=false -on-error=cleanup -only ${{ github.event.inputs.packer_target }} -var 'edgenode_version=${{ github.event.inputs.edgenode_version }}' ."
