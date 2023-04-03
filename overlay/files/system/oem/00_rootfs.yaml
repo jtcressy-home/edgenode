@@ -47,8 +47,8 @@ stages:
       environment:
         VOLUMES: "LABEL=COS_OEM:/oem"
         OVERLAY: "tmpfs:25%"
-    - if: '[ ! -f /dev/disk/by-label/COS_OEM ]'
-      name: "Redirect /oem to COS_GRUB if COS_OEM does not exist"
+    - if: '[ ! -b /dev/disk/by-label/COS_OEM ]'
+      name: "Redirect /oem to COS_GRUB if COS_OEM does not exist or is not a block device"
       commands:
       - sed -i "s/COS_OEM/COS_GRUB/g" /run/cos/cos-layout.env
     - if: '[ ! -f /run/cos/recovery_mode ] && [ ! -f /run/cos/live_mode ]'
