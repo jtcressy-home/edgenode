@@ -1,10 +1,10 @@
 [Unit]
-Description=Ensures that the microk8s kube-apiserver advertise address matches tailscale0
+Description=Ensures that the microk8s node InternalIP matches tailscale0
 After=tailscaled.service
 Requires=tailscaled.service
 
 [Service]
-ExecStart=-/usr/bin/microk8s-tailscale-apiserver-ip
+ExecStart=-/usr/bin/microk8s-tailscale-node-ip
 Restart=always
 RestartSec=15s
 User=root
