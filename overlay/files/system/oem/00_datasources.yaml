@@ -1,6 +1,6 @@
 name: "Pull from Datasources & Set Hostname"
 stages:
-  fs:
+  network:
     - name: "Pull data from metadata API"
       commands:
         - |
@@ -81,6 +81,10 @@ stages:
               if [ $? -eq 0 ] && [ -n "${decoded_user_data}" ]; then
                   output_file="/oem/userdata.yaml"
                   echo "${decoded_user_data}" > "${output_file}"
+                  echo "User data saved to ${output_file}"
+              else
+                  output_file="/oem/userdata.yaml"
+                  echo "${user_data}" > "${output_file}"
                   echo "User data saved to ${output_file}"
               fi
   
