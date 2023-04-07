@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Set the value of FILE
-FILE="/var/snap/microk8s/current/args/kube-apiserver"
-
 # Define the restart_microk8s function
 restart_microk8s() {
     # Restart logic
@@ -12,13 +9,9 @@ restart_microk8s() {
     microk8s status --wait-ready
 }
 
-# Wrap the main part of the script in a while loop
-while true; do
-    # Wait for the tailscale ip -4 command to succeed, sleep for 10 seconds between retries
-    until IP=$(tailscale ip -4); do
-        sleep 10
-    done
-
+set_apiserver_address() {
+    IP=$1
+    FILE="/var/snap/microk8s/current/args/kube-apiserver"
     # Set the value of NEW_LINE
     NEW_LINE="--advertise-address=$IP"
 
@@ -27,10 +20,48 @@ while true; do
         OLD_LINE=$(grep '^--advertise-address=' "$FILE")
         sed -i "/^--advertise-address=/c$NEW_LINE" "$FILE"
         if [[ "$OLD_LINE" != "$NEW_LINE" ]]; then
-            restart_microk8s
+            return 2
         fi
     else
         echo "$NEW_LINE" >> "$FILE"
+        return 2
+    fi
+    return 0
+}
+
+set_kubelet_address() {
+    IP=$1
+    FILE="/var/snap/microk8s/current/args/kubelet"
+    # Set the value of NEW_LINE
+    NEW_LINE="--node-ip=$IP"
+
+    # Check if the pattern exists in the file and update it
+    if grep -q '^--node-ip=' "$FILE"; then
+        OLD_LINE=$(grep '^--node-ip=' "$FILE")
+        sed -i "/^--node-ip=/c$NEW_LINE" "$FILE"
+        if [[ "$OLD_LINE" != "$NEW_LINE" ]]; then
+            return 2
+        fi
+    else
+        echo "$NEW_LINE" >> "$FILE"
+        return 2
+    fi
+    return 0
+}
+
+# Wrap the main part of the script in a while loop
+while true; do
+    # Wait for the tailscale ip -4 command to succeed, sleep for 10 seconds between retries
+    until IP=$(tailscale ip -4); do
+        sleep 10
+    done
+
+    set_apiserver_address $IP
+    set_apiserver_code=$?
+    set_kubelet_address $IP
+    set_kubelet_code=$?
+
+    if [[ $set_apiserver_code == 2 || $set_kubelet_code == 2 ]]; then
         restart_microk8s
     fi
 
