@@ -45,6 +45,10 @@ stages:
                       user_data_path="/user_data"
                       hostname_path="/meta_data.json"
                       ;;
+                  digitalocean)
+                      metadata_url="http://169.254.169.254/metadata/v1"
+                      user_data_path="/user_data"
+                      hostname_path="/hostname"
               esac
 
               # Test the request to the metadata URL
@@ -57,7 +61,7 @@ stages:
               return $?
           }
 
-          for provider in oracle aws gcp openstack none; do
+          for provider in oracle aws gcp openstack digitalocean none; do
               if [ "$provider" = "none" ]; then
                   break
               fi
