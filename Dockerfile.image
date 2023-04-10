@@ -20,16 +20,6 @@ RUN apk add curl && \
     curl -sL https://github.com/derailed/k9s/releases/download/${VERSION}/k9s_Linux_${TARGETARCH}.tar.gz | tar -xz k9s -C /bin/
     # binary file will be available at /bin/k9s
 
-## Download GVNIC driver for gcp
-FROM alpine AS gvnic-download
-ARG GVNIC_VERSION=latest
-RUN apk add curl && \
-    set -x && \
-    REPO="GoogleCloudPlatform/compute-virtual-ethernet-linux" && \
-    [ "$GVNIC_VERSION" = "latest" ] && VERSION=$(curl -s https://api.github.com/repos/${REPO}/releases/latest | grep "tag_name" | cut -d'"' -f4) || VERSION=$GVNIC_VERSION && \
-    curl -sL https://github.com/${REPO}/releases/download/${VERSION}/gve-dkms_${VERSION#v}_all.deb -o gve-dkms_${VERSION#v}_all.deb
-    # file is at /gve-dkms_${VERSION#v}_all.deb
-
 ## Base OS Selection
 FROM quay.io/costoolkit/releases-orange:cos-system-${COS_VERSION} AS base-os-amd64
 FROM quay.io/costoolkit/releases-orange-arm64:cos-system-${COS_VERSION} AS base-os-arm64
@@ -79,9 +69,6 @@ COPY overlay/files /
 RUN setupcon --save
 
 COPY --from=k9s-download /bin/k9s /usr/bin/k9s
-
-COPY --from=gvnic-download /gve-dkms_*_all.deb /tmp/
-RUN apt install -y /tmp/gve-dkms_*_all.deb
 
 # RUN apt install -y linux-image-generic initramfs-tools
 
