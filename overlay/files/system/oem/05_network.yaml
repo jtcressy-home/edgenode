@@ -8,10 +8,33 @@
 name: "Default network configuration"
 stages:
   initramfs:
-    - name: "Ensure /etc/hosts contains localhost"
+    - &hostpersist
+      if: '[ ! -f "/run/cos/recovery_mode" ]'
+      name: "Persist /etc/hostname"
       commands:
-      - grep -q '127.0.0.1 localhost' "/etc/hosts" || echo "127.0.0.1 localhost" >> /etc/hosts
+      - |
+        # persist hostname
+        if [ -s /usr/local/etc/hostname ]; then
+          cat /usr/local/etc/hostname > /etc/hostname
+        else
+          mkdir -p /usr/local/etc
+          cp /etc/hostname /usr/local/etc
+        fi
+    - &hostsfix
+      name: "Ensure /etc/hosts contains localhost and hostname"
+      commands:
+      - |
+        LINE="127.0.0.1 localhost $(cat /etc/hostname)"
+        if [ ! grep -q "$LINE" "/etc/hosts" ]; then
+          if [ -f /etc/hosts ]; then
+            sed -i "1s/^/$LINE/" /etc/hosts
+          else
+            echo "${LINE}" > /etc/hosts
+          fi
+        fi
     - name: "Ensure resolv.conf symlink"
       commands:
       - ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
-       
+  network.after:
+    - <<: *hostpersist
+    - <<: *hostsfix

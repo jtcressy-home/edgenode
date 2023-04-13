@@ -1,122 +1,198 @@
-name: "Pull from Datasources & Set Hostname"
+name: "Datasource handling"
 stages:
-  network:
-    - name: "Pull data from metadata API"
+  rootfs.before:
+    - &providerdmi
+      if: '[ ! -f /run/config/userdata ] && [ ! -f /run/config/hostname ]'
+      name: "Pull data from provider: default"
       commands:
-        - |
-          #!/bin/sh
-          
-          slugify() {
-              echo "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd '[:alnum:]-' | sed 's/[^[:alnum:]]\{1,\}/-/g' | sed 's/^-//;s/-$//'
-          }
-          
-          truncate_string() {
-            input_string=$1
-            str_length=$(expr length "$input_string")
-            if [ "$str_length" -gt 32 ]; then
-              start_pos=$(expr $str_length - 31)
-              echo $(expr substr "$input_string" $start_pos 32)
-            else
-              echo "$input_string"
-            fi
-          }
+      - |
+        #!/bin/sh
+        provider_name="default"
 
-          try_fetch_metadata() {
-              provider=$1
-              case "$provider" in
-                  oracle)
-                      metadata_url="http://169.254.169.254/opc/v1/instance"
-                      user_data_path="/metadata/user_data"
-                      hostname_path="/hostname"
-                      ;;
-                  aws)
-                      metadata_url="http://169.254.169.254/latest/meta-data"
-                      user_data_path="/user-data"
-                      hostname_path="/local-hostname"
-                      ;;
-                  gcp)
-                      metadata_url="http://metadata.google.internal/computeMetadata/v1/instance"
-                      user_data_path="/attributes/user-data"
-                      hostname_path="/hostname"
-                      gcp_header="Metadata-Flavor: Google"
-                      ;;
-                  openstack)
-                      metadata_url="http://169.254.169.254/openstack/latest"
-                      user_data_path="/user_data"
-                      hostname_path="/meta_data.json"
-                      ;;
-                  digitalocean)
-                      metadata_url="http://169.254.169.254/metadata/v1"
-                      user_data_path="/user_data"
-                      hostname_path="/hostname"
-              esac
+        slugify() {
+          echo "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd '[:alnum:]-' | sed 's/[^[:alnum:]]\{1,\}/-/g' | sed 's/^-//;s/-$//'
+        }
 
-              # Test the request to the metadata URL
-              if [ "$provider" = "gcp" ]; then
-                  curl --connect-timeout 1 -s -f -H "${gcp_header}" -w "%{http_code}" "${metadata_url}" -o /dev/null 2>&1 | awk '{ if ($0 < 200 || $0 >= 300) exit 1; else exit 0 }'
-              else
-                  curl --connect-timeout 1 -s -f "${metadata_url}" > /dev/null
-              fi
-
-              return $?
-          }
-
-          for provider in oracle aws gcp openstack digitalocean none; do
-              if [ "$provider" = "none" ]; then
-                  break
-              fi
-              if try_fetch_metadata "$provider"; then
-                  echo "Metadata fetched from ${provider}"
-                  break
-              fi
-          done
-          if [ "$provider" != "none" ]; then
-              # Fetch user_data from the metadata API
-              if [ "$provider" = "gcp" ]; then
-                  user_data=$(curl --connect-timeout 1 -s -f -H "${gcp_header}" "${metadata_url}${user_data_path}" || true)
-              else
-                  user_data=$(curl --connect-timeout 1 -s -f "${metadata_url}${user_data_path}" || true)
-              fi
-    
-              # Decode user_data from base64
-              decoded_user_data=$(echo "${user_data}" | openssl enc -base64 -d)
-    
-              # If user_data is successfully decoded, write it to the file
-              if [ $? -eq 0 ] && [ -n "${decoded_user_data}" ]; then
-                  output_file="/oem/userdata.yaml"
-                  echo "${decoded_user_data}" > "${output_file}"
-                  echo "User data saved to ${output_file}"
-              else
-                  output_file="/oem/userdata.yaml"
-                  echo "${user_data}" > "${output_file}"
-                  echo "User data saved to ${output_file}"
-              fi
-  
-              # Fetch instance hostname
-              if [ "$provider" = "gcp" ]; then
-                  instance_hostname=$(curl --connect-timeout 1 -s -f -H "${gcp_header}" "${metadata_url}${hostname_path}" || true)
-              elif [ "$provider" = "openstack" ]; then
-                  instance_hostname=$(curl --connect-timeout 1 -s -f "${metadata_url}${hostname_path}" | jq -r '.name' || true)
-              else
-                  instance_hostname=$(curl --connect-timeout 1 -s -f "${metadata_url}${hostname_path}" || true)
-              fi
-          fi
-
-          # Check if instance_hostname is empty or null
-          if [ -n "${instance_hostname}" ]; then
-              echo "Instance Hostname: ${instance_hostname}"
-              echo "${instance_hostname}" > /etc/hostname
+        truncate_string() {
+          input_string=$1
+          str_length=$(expr length "$input_string")
+          if [ "$str_length" -gt 32 ]; then
+            start_pos=$(expr $str_length - 31)
+            echo $(expr substr "$input_string" $start_pos 32)
           else
-              sys_vendor=$(cat /sys/class/dmi/id/sys_vendor)
-              product_serial=$(cat /sys/class/dmi/id/product_serial)
-              slugified_sys_vendor=$(slugify "${sys_vendor}")
-              slugified_product_serial=$(slugify "${product_serial}")
-              truncated_product_serial=$(truncate_string "${slugified_product_serial}")
-              instance_hostname="${slugified_sys_vendor}-${truncated_product_serial}"
-              echo "Instance Hostname: ${instance_hostname}"
-              echo "${instance_hostname}" > /etc/hostname
+            echo "$input_string"
           fi
-    - name: "Process data from provider"
+        }
+
+        generate_hostname() {
+          sys_vendor=$(dmidecode -s system-manufacturer || cat /sys/class/dmi/id/sys_vendor)
+          product_serial=$(dmidecode -s system-serial-number || cat /sys/class/dmi/id/product_serial)
+          slugified_sys_vendor=$(slugify "${sys_vendor}")
+          slugified_product_serial=$(slugify "${product_serial}")
+          truncated_product_serial=$(truncate_string "${slugified_product_serial}")
+          instance_hostname="${slugified_sys_vendor}-${truncated_product_serial}"
+          echo "${instance_hostname}"
+        }
+        
+        process_provider() {
+          echo "${provider_name}" > /run/config/provider
+          return 0
+        }
+
+        process_userdata() {
+          echo "#cloud-config" > /run/config/userdata
+          return $?
+        }
+
+        process_hostname() {
+          echo "Generating hostname from dmidecode"
+          generate_hostname | tr -d '\n\r' | tee /run/config/hostname
+          return $?
+        }
+
+        process_ssh() {
+          mkdir -p /run/config/ssh
+          touch /run/config/ssh/authorized_keys
+          # Nothing implemented here yet
+          return 0
+        }
+
+        # attempt to get provider metadata ? put ${provider_name} in /run/config/provider
+        if process_provider; then
+          # attempt to get userdata ? put contents in /run/config/userdata
+          process_userdata
+          # attempt to get hostname ? put contents in /run/config/hostname
+          process_hostname
+          # attempt to get ssh/authorized_keys ? put contents in /run/config/ssh/authorized_keys
+          process_ssh
+        fi
+    - &provideroci
+      name: "Pull data from provider: OCI"
+      if: '[ ! -f /oem/userdata ] && [ ! -f /run/config/userdata ]'
+      commands:
+      - |
+        #!/bin/sh
+        provider_name="OCI"
+        metadata_url="http://169.254.169.254/opc/v1/instance"
+        userdata_url="${metadata_url}/metadata/user_data"
+        hostname_url="${metadata_url}/hostname"
+        ssh_url="${metadata_url}/metadata/ssh_authorized_keys"
+        
+        try_fetch() {
+          url=$1
+          file=$2
+          curl --connect-timeout 1 -s -S -f "${url}" > "${file}"
+          return $?
+        }
+
+        process_provider() {
+          if try_fetch $metadata_url "/dev/null"; then
+            echo "Metadata fetched from ${provider_name}"
+            echo "${provider_name}" > /run/config/provider
+            return 0
+          else
+            echo "Warning: failed to fetch metadata from ${provider_name}"
+            return 1
+          fi
+        }
+
+        process_userdata() {
+          if try_fetch $userdata_url "/run/config/userdata"; then
+            echo "Userdata from ${provider_name} saved to /run/config/userdata"
+            decoded_userdata=$(cat /run/config/userdata | base64 -d)
+            if [ $? -eq 0 ] && [ -n "${decoded_userdata}" ]; then
+              echo "Userdata was encoded base64. Decoded again to /run/config/userdata"
+              echo "${decoded_userdata}" > "/run/config/userdata"
+            fi
+            return 0
+          else
+            echo "Warning: failed to fetch userdata from ${provider_name}"
+            return 1
+          fi
+        }
+
+        process_hostname() {
+          if try_fetch $hostname_url "/run/config/hostname"; then
+            echo "Hostname fetched from ${provider_name} and saved to /run/config/hostname"
+            return 0
+          else
+            echo "Warning: failed to fetch hostname from ${provider_name}"
+          fi
+        }
+
+        process_ssh() {
+          mkdir -p /run/config/ssh
+          if try_fetch $ssh_url "/run/config/ssh/authorized_keys"; then
+            echo "SSH Keys fetched from ${provider_name} and saved to /run/config/hostname"
+            # TODO: whatever yip normally does to process the ssh keys
+            return 0
+          else
+            echo "Warning: failed to fetch ssh keys from ${provider_name}"
+            return 1
+          fi
+        }
+
+        # attempt to get base metadata url ? put 'OCI' in /run/config/provider and ->
+        if process_provider; then
+          # attempt to get user-data ? put contents in /run/config/userdata
+          process_userdata || true
+          # attempt to get hostname ? put contents in /run/config/hostname
+          process_hostname || true
+          # attempt to get ssh/authorized_keys ? put contents in /run/config/ssh/authorized_keys
+          process_ssh || true
+        fi
+    - &providerfile
+      if: '[ ! -f /oem/userdata ] && [ -f /run/config/userdata ]'
+      name: "Call file datasource provider to process anything in /run/config"
       datasource:
-        providers: ["cdrom", "file"]
-        path: "/oem/userdata.yaml"
+        providers: ["file"]
+        path: "/run/config/userdata"
+    - &datasource
+      if: '[ ! -f /oem/userdata ]'
+      name: "Pull data from provider"
+      datasource:
+        providers: ["cdrom", "gcp", "openstack", "aws", "azure", "hetzner", "packet", "scaleway", "vultr", "digitalocean", "metaldata"]
+        path: "/oem"
+    - if: '[ ! -f /oem/userdata ]'
+      files:
+      - path: /run/.userdata_load
+  initramfs.before:
+    - <<: *providerdmi
+    - <<: *provideroci
+    - <<: *providerfile
+    - <<: *datasource
+    - if: '[ ! -f /oem/userdata ]'
+      files:
+      - path: /run/.userdata_load
+    
+  # After network, if no datasource could be pulled, we stop trying
+  network.before:
+    - <<: *providerdmi
+    - <<: *provideroci
+    - <<: *providerfile
+    - <<: *datasource
+    
+    ## Handle custom datasource providers like OCI (the custom scripts don't copy any userdata to /oem)
+    - if: '[ ! -f /oem/userdata ] && [ -f /run/config/userdata ]'
+      name: "Call file datasource provider to process anything in /run/config"
+      datasource:
+        providers: ["file"]
+        path: "/run/config/userdata"
+    - if: '[ ! -f /oem/userdata ] && [ -f /run/config/userdata ]'
+      name: "Copy userdata to /oem"
+      commands:
+      - cp /run/config/userdata /oem/userdata
+    - if: '[ ! -f /oem/userdata.yaml ] && [ -f /run/config/userdata.yaml ]'
+      name: "Copy yip-compatible userdata to /oem"
+      commands:
+      - cp /run/config/userdata.yaml /oem/userdata.yaml
+    ## /end Handle Custom Provider
+
+    - if: '[ -f /oem/userdata ] && [ -f /run/.userdata_load ]'
+      commands:
+      - elemental cloud-init -s initramfs /oem/userdata
+      - elemental cloud-init -s boot /oem/userdata
+      - rm -rf /run/.userdata_load
+    - if: '[ ! -f /oem/userdata ] && [ -f /run/.userdata_load ]'
+      commands:
+      - rm -rf /run/.userdata_load
