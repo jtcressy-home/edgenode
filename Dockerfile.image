@@ -57,7 +57,9 @@ RUN apt-get update && apt-get autoclean && DEBIAN_FRONTEND=noninteractive apt-ge
     htop \
     tree \
     qemu-kvm \
-    libvirt-daemon-system
+    libvirt-daemon-system \
+    libvirt-clients \
+    bridge-utils
 
 # RUN snap download microk8s --channel=$MICROK8S_CHANNEL --target-directory /opt/microk8s/snaps --basename microk8s
 # RUN snap download core --target-directory /opt/microk8s/snaps --basename core
