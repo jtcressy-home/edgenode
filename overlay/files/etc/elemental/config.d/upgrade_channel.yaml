@@ -1,0 +1,5 @@
+upgrade:
+  system:
+    uri: oci:ghcr.io/jtcressy-home/edgenode:latest
+  recovery-system:
+    uri: channel:recovery/cos

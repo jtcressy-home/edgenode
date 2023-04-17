@@ -6,11 +6,12 @@ install:
   system:
     size: 4000
   recovery-system:
-    size: 4000
+    size: 2000
+    uri: channel:recovery/cos
 upgrade:
   grub-entry-name: "EdgeNode OS"
   recovery-system:
-    size: 4000
+    size: 2000
   system:
     size: 4000
 reset:

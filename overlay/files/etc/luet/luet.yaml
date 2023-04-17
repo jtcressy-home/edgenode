@@ -1,0 +1,22 @@
+logging:
+  color: false
+  enable_emoji: false
+general:
+  debug: false
+  spinner_charset: 9
+repositories:
+  - &cos
+    name: "cos"
+    description: "cOS official"
+    type: "docker"
+    cached: true
+    priority: 1
+    arch: "amd64"
+    reference: repository.yaml
+    verify: false
+    urls:
+      - "quay.io/costoolkit/releases-blue"
+  - <<: *cos
+    arch: "arm64"
+    urls:
+      - "quay.io/costoolkit/releases-blue-arm64"
