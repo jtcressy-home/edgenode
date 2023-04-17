@@ -27,7 +27,7 @@ stages:
         LINE="127.0.0.1 localhost $(cat /etc/hostname)"
         if ! grep -q "$LINE" "/etc/hosts"; then
           if [ -f /etc/hosts ]; then
-            sed -i "1s/^/$LINE/" /etc/hosts
+            echo "${$LINE} >> /etc/hosts
           else
             echo "${LINE}" > /etc/hosts
           fi
