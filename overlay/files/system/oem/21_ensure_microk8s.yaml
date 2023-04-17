@@ -2,12 +2,10 @@ name: "Ensure microk8s is activated and up-to-date in snapd"
 stages:
   network:
     - name: "If microk8s not installed, run installer"
-      if: |
-        [ ! -d \"/var/snap/microk8s\" ]
+      if: '[ ! -f /run/cos/recovery_mode ] && [ ! -f /run/cos/live_mode ] && [ ! -d \"/var/snap/microk8s\" ]'
       commands:
       - /opt/microk8s/scripts/00-install-microk8s.sh
     - name: "If microk8s installed, upgrade if necessary"
-      if: |
-        [ -d \"/var/snap/microk8s\" ]
+      if: '[ ! -f /run/cos/recovery_mode ] && [ ! -f /run/cos/live_mode ] && [ -d \"/var/snap/microk8s\" ]'
       commands:
       - /opt/microk8s/scripts/00-upgrade-microk8s.sh
