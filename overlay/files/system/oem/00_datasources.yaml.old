@@ -1,0 +1,150 @@
+name: "Pull from Datasources & Set Hostname"
+stages:
+  network:
+    - name: "Pull data from metadata API"
+      commands:
+        - |
+          #!/bin/sh
+
+          OUTPUT_USERDATA_FILE="/oem/user-data"
+
+          slugify() {
+            echo "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd '[:alnum:]-' | sed 's/[^[:alnum:]]\{1,\}/-/g' | sed 's/^-//;s/-$//'
+          }
+
+          truncate_string() {
+            input_string=$1
+            str_length=$(expr length "$input_string")
+            if [ "$str_length" -gt 32 ]; then
+              start_pos=$(expr $str_length - 31)
+              echo $(expr substr "$input_string" $start_pos 32)
+            else
+              echo "$input_string"
+            fi
+          }
+
+          set_userdata_hostname() {
+            HOSTNAME=$1
+            FILE=$OUTPUT_USERDATA_FILE
+
+            NEW_LINE="hostname: '$HOSTNAME'"
+            if [ -f $FILE ]; then
+              if grep -q '^hostname:' "$FILE"; then
+                echo "Hostname already set in ${FILE}. Skipping"
+                return 0
+              else
+                echo "$NEW_LINE" >> "$FILE"
+                return 2
+              fi
+            else
+              echo "#cloud-init" > "$FILE"
+              echo "$NEW_LINE" >> "$FILE"
+              return 2
+            fi
+            return 0
+          }
+
+          try_fetch_metadata() {
+            provider=$1
+            case "$provider" in
+              oracle)
+                metadata_url="http://169.254.169.254/opc/v1/instance"
+                user_data_path="/metadata/user_data"
+                hostname_path="/hostname"
+                ;;
+              aws)
+                metadata_url="http://169.254.169.254/latest/meta-data"
+                user_data_path="/user-data"
+                hostname_path="/local-hostname"
+                ;;
+              gcp)
+                metadata_url="http://metadata.google.internal/computeMetadata/v1/instance"
+                user_data_path="/attributes/user-data"
+                hostname_path="/hostname"
+                gcp_header="Metadata-Flavor: Google"
+                ;;
+              openstack)
+                metadata_url="http://169.254.169.254/openstack/latest"
+                user_data_path="/user_data"
+                hostname_path="/meta_data.json"
+                ;;
+              digitalocean)
+                metadata_url="http://169.254.169.254/metadata/v1"
+                user_data_path="/user_data"
+                hostname_path="/hostname"
+                ;;
+            esac
+
+            # Test the request to the metadata URL
+            if [ "$provider" = "gcp" ]; then
+              curl --connect-timeout 1 -s -f -H "${gcp_header}" -w "%{http_code}" "${metadata_url}" -o /dev/null 2>&1 | awk '{ if ($0 < 200 || $0 >= 300) exit 1; else exit 0 }'
+            else
+              curl --connect-timeout 1 -s -f "${metadata_url}" > /dev/null
+            fi
+
+            return $?
+          }
+
+          for provider in oracle aws gcp openstack digitalocean none; do
+            if [ "$provider" = "none" ]; then
+              break
+            fi
+            if try_fetch_metadata "$provider"; then
+              echo "Metadata fetched from ${provider}"
+              break
+            fi
+          done
+          if [ "$provider" != "none" ]; then
+            # Fetch user_data from the metadata API
+            if [ "$provider" = "gcp" ]; then
+              user_data=$(curl --connect-timeout 1 -s -f -H "${gcp_header}" "${metadata_url}${user_data_path}" || true)
+            else
+              user_data=$(curl --connect-timeout 1 -s -f "${metadata_url}${user_data_path}" || true)
+            fi
+
+            # Decode user_data from base64
+            decoded_user_data=$(echo "${user_data}" | openssl enc -base64 -d)
+
+            # If user_data is successfully decoded, write it to the file
+            if [ $? -eq 0 ] && [ -n "${decoded_user_data}" ]; then
+              echo "${decoded_user_data}" > "${OUTPUT_USERDATA_FILE}"
+              echo "User data saved to ${OUTPUT_USERDATA_FILE}"
+            elif [ -n "${user_data}" ]; then
+              echo "${user_data}" > "${OUTPUT_USERDATA_FILE}"
+              echo "User data saved to ${OUTPUT_USERDATA_FILE}"
+            fi
+
+            # Fetch instance hostname
+            if [ "$provider" = "gcp" ]; then
+                instance_hostname=$(curl --connect-timeout 1 -s -f -H "${gcp_header}" "${metadata_url}${hostname_path}" || true)
+            elif [ "$provider" = "openstack" ]; then
+                instance_hostname=$(curl --connect-timeout 1 -s -f "${metadata_url}${hostname_path}" | jq -r '.name' || true)
+            else
+                instance_hostname=$(curl --connect-timeout 1 -s -f "${metadata_url}${hostname_path}" || true)
+            fi
+          fi
+
+          # Check if instance_hostname is empty or null
+          if [ -n "${instance_hostname}" ]; then
+              echo "Instance Hostname: ${instance_hostname}"
+              set_userdata_hostname "${instance_hostname}"
+              if [ $? -eq 2 ]; then
+                  echo "Set hostname in ${OUTPUT_USERDATA_FILE}"
+              fi
+          else
+              sys_vendor=$(cat /sys/class/dmi/id/sys_vendor)
+              product_serial=$(cat /sys/class/dmi/id/product_serial)
+              slugified_sys_vendor=$(slugify "${sys_vendor}")
+              slugified_product_serial=$(slugify "${product_serial}")
+              truncated_product_serial=$(truncate_string "${slugified_product_serial}")
+              instance_hostname="${slugified_sys_vendor}-${truncated_product_serial}"
+              echo "Instance Hostname: ${instance_hostname}"
+              set_userdata_hostname "${instance_hostname}"
+              if [ $? -eq 2 ]; then
+                  echo "Set hostname in ${OUTPUT_USERDATA_FILE}"
+              fi
+          fi
+    - name: "Process data from provider"
+      datasource:
+        providers: ["cdrom", "file"]
+        path: "/oem/user-data"
