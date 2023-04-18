@@ -9,3 +9,10 @@ stages:
       if: '[ ! -f /run/cos/recovery_mode ] && [ ! -f /run/cos/live_mode ] && [ -d \"/var/snap/microk8s\" ]'
       commands:
       - /opt/microk8s/scripts/00-upgrade-microk8s.sh
+    - &kubeletbindmount
+      name: "Ensure /var/lib/kubelet is bind-mounted to microk8s kubelet"
+      if: '[ -d \"/var/snap/microk8s/common/var/lib/kubelet\" ]'
+      commands:
+      - mount -o bind /var/snap/microk8s/common/var/lib/kubelet /var/lib/kubelet
+  reconcile:
+    - <<: *kubeletbindmount
