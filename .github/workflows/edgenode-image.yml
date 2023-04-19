@@ -50,7 +50,23 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels) for Docker
-        id: meta
+        id: version
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          flavor: |
+            latest=auto
+            prefix=
+            suffix=
+          tags: |
+            type=schedule
+            type=semver,pattern=v{{version}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: arch-tags
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}
@@ -93,24 +109,24 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           push: true
           tags: |
-            ${{ steps.meta.outputs.tags }}
+            ${{ steps.arch-tags.outputs.tags }}
           labels: |
-            ${{ steps.meta.outputs.labels }}
+            ${{ steps.arch-tags.outputs.labels }}
           build-args: |
             OS_LABEL=${{ env.OS_LABEL }}
             OS_REPO=${{ env.REGISTRY }}/${{ github.repository }}
             GITHUB_REPO=${{ github.repository }}
             BUG_REPORT_URL=https://github.com/${{ github.repository }}/issues
             HOME_URL=https://github.com/${{ github.repository }}
-            OS_VERSION=${{ steps.meta.outputs.version }}
+            OS_VERSION=${{ steps.version.outputs.version }}
             IMAGE_COMMIT=${{ github.sha }}
 
       - name: Summary
         run: |
           echo '### Built Image Tags' >> $GITHUB_STEP_SUMMARY
-          echo '${{ steps.meta.outputs.tags }}' >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.arch-tags.outputs.tags }}' >> $GITHUB_STEP_SUMMARY
           echo '### Built Image Labels' >> $GITHUB_STEP_SUMMARY
-          echo '${{ steps.meta.outputs.labels }}' >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.arch-tags.outputs.labels }}' >> $GITHUB_STEP_SUMMARY
 
   combine-multiarch:
     needs:
