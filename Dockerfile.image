@@ -4,7 +4,7 @@ ARG COS_VERSION=0.10.3
 
 # Versions of dependencies
 # renovate: datasource=github-releases depName=tailscale/tailscale
-ENV TAILSCALE_VERSION=1.38.4
+ENV TAILSCALE_VERSION="1.38.4"
 
 ## Framework Build
 FROM quay.io/luet/base:$LUET_VERSION AS framework-build
