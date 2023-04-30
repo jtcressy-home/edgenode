@@ -36,8 +36,12 @@ COPY framework/files/ /
 RUN curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.noarmor.gpg | tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null && \
     curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.tailscale-keyring.list | tee /etc/apt/sources.list.d/tailscale.list
 
+# Versions of dependencies
+# renovate: datasource=github-releases depName=tailscale/tailscale
+ENV TAILSCALE_VERSION="1.38.4"
+
 RUN apt-get update && apt-get autoclean && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    tailscale \
+    tailscale=${TAILSCALE_VERSION} \
     jq \
     qrencode \
     dmidecode \
