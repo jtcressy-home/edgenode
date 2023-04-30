@@ -2,6 +2,10 @@
 ARG LUET_VERSION=0.34.0
 ARG COS_VERSION=0.10.3
 
+# Versions of dependencies
+# renovate: datasource=github-releases depName=tailscale/tailscale
+ARG TAILSCALE_VERSION=1.38.4
+
 ## Framework Build
 FROM quay.io/luet/base:$LUET_VERSION AS framework-build
 COPY framework/files/etc/luet/luet.yaml /etc/luet/luet.yaml
@@ -37,7 +41,7 @@ RUN curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.noarmor.gpg | tee 
     curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.tailscale-keyring.list | tee /etc/apt/sources.list.d/tailscale.list
 
 RUN apt-get update && apt-get autoclean && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    tailscale \
+    tailscale=${TAILSCALE_VERSION} \
     jq \
     qrencode \
     dmidecode \
