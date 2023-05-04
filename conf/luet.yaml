@@ -9,8 +9,8 @@ repositories:
     reference: repository.yaml
     verify: false
     urls:
-      - "quay.io/costoolkit/releases-orange"
+      - "quay.io/costoolkit/releases-green"
   - <<: *cos
     arch: "arm64"
     urls:
-      - "quay.io/costoolkit/releases-orange-arm64"
+      - "quay.io/costoolkit/releases-green-arm64"
