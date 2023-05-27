@@ -55,6 +55,7 @@ RUN apt-get update && apt-get autoclean && DEBIAN_FRONTEND=noninteractive apt-ge
     net-tools \
     inetutils-ping \
     dnsutils \
+    gdisk \
     vim \
     file \
     musl \
