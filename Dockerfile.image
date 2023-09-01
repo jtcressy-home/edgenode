@@ -38,7 +38,7 @@ RUN curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.noarmor.gpg | tee 
 
 # Versions of dependencies
 # renovate: datasource=github-releases depName=tailscale/tailscale
-ENV TAILSCALE_VERSION=1.48.0
+ENV TAILSCALE_VERSION=1.48.1
 
 RUN apt-get update && apt-get autoclean && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     tailscale=${TAILSCALE_VERSION} \
