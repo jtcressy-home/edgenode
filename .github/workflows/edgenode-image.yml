@@ -34,7 +34,7 @@ jobs:
           runs-on: ${{ ((contains(github.event.head_commit.message, '+ci-boost') || contains(github.event.*.labels.*.name, 'ci-boost')) && 'buildjet-16vcpu-ubuntu-2204-arm' || 'ubuntu-latest') }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -137,7 +137,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Login to the Container Registry
         uses: docker/login-action@v2
@@ -207,7 +207,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -270,7 +270,7 @@ jobs:
     if: github.event_name == 'release'
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - uses: actions/download-artifact@v3
         id: download
