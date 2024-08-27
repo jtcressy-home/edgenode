@@ -1,5 +1,5 @@
 # Binaries and files needed from elemental-toolkit repository
-ARG LUET_VERSION=0.35.0
+ARG LUET_VERSION=0.35.5
 ARG COS_VERSION=0.10.3
 
 ## Framework Build
